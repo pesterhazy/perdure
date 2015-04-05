@@ -20,12 +20,19 @@
   [rev]
   (println (git [:cat-file "-p" rev])))
 
+(declare wrt)
+
 (defn ser
   "Serializes the argument"
   [x]
   (if (vector? x)
-    (let [st (->> x
-                  (map ser)
-                  (clojure.string/join))]
-      (print st))
-    (prn-str x)))
+    (let [result (with-out-str (doseq [e (map wrt x)]
+                                 (println e)))]
+      result)
+    (pr-str x)))
+
+(defn wrt
+  [x]
+  (if (vector? x)
+    (str "#rf \"" (hash-object (ser x)) "\"")
+    (ser x)))
