@@ -1,5 +1,6 @@
 (ns kobold.core
-  (:require [me.raynes.conch :refer [with-programs]]))
+  (:require [me.raynes.conch :refer [with-programs]]
+            [clojure.edn :as edn]))
 
 (defn git
   ([args] (git args ""))
@@ -26,16 +27,17 @@
 (defn ser-vec
   "Returns a pair [blob tree-str]"
   [v]
-  (reduce
-   (fn [[out-str out-tree tree-count] e]
-     (if (vector? e)
-       (let [hsh (write-vec e)]
-         [(str out-str (str "#rf \"" hsh "\"\n"))
-          (str out-tree "040000 tree " hsh "\t" tree-count "\n")
-          (inc tree-count)])
-       [(str out-str (prn-str e)) out-tree tree-count]))
-   ["" "" 0]
-   v))
+  (let [[blob tree-str] (reduce
+                         (fn [[out-str out-tree tree-count] e]
+                           (if (vector? e)
+                             (let [hsh (write-vec e)]
+                               [(str out-str (str "#kobold.core/rf \"" hsh "\"\n"))
+                                (str out-tree "040000 tree " hsh "\t" tree-count "\n")
+                                (inc tree-count)])
+                             [(str out-str (prn-str e)) out-tree tree-count]))
+                         ["" "" 0]
+                         v)]
+    [(str "[\n" blob "]\n") tree-str]))
 
 (defn vec->tree
   [v]
@@ -49,15 +51,15 @@
   [v]
   (-> v vec->tree mktree))
 
-(defn read-blob-line [st]
-  (if-let [m (re-find #"#rf \"(.*)\"" st)]
-    (let [hsh (get m 1)]
-      (read-vec hsh))
-    (read-string st)))
+;; (defn read-blob-line [st]
+;;   (if-let [m (re-find #"#kobold.core/rf \"(.*)\"" st)]
+;;     (let [hsh (get m 1)]
+;;       (read-vec hsh))
+;;     (read-string st)))
 
 (defn blob->vec
   [st]
-  (mapv read-blob-line (clojure.string/split st #"\n")))
+  (edn/read-string {:readers {'kobold.core/rf read-vec}} st))
 
 (defn read-vec
   "Takes the hash of a tree object and reads the vector stored"
