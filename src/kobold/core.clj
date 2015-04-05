@@ -68,5 +68,14 @@
 (defn write-vec [v]
   (-> v vec->tree mktree))
 
+(defn rv [st]
+  (if-let [m (re-find #"#rf \"(.*)\"" st)]
+    (let [hsh (get m 1)]
+      (read-vec hsh))
+    (load-string st)))
+
+(defn rd-vec [st]
+  (mapv rv (clojure.string/split st #"\n")))
+
 (defn read-vec [hsh]
-  (git [:show (str hsh ":root")]))
+  (rd-vec (git [:show (str hsh ":root")])))
