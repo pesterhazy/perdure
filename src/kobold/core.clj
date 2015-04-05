@@ -1,13 +1,17 @@
 (ns kobold.core
   (:require [me.raynes.conch :refer [with-programs]]))
 
-(defn to-obj
+(defn git
+  ([args] (git args nil))
+  ([args in]
+   (with-programs [git]
+     (-> (apply git (concat args [{:in in}]))
+         (clojure.string/trim-newline)))))
+
+(defn hash-object
   "Takes a string, writes it to the object store. Returns hash"
   [st]
-  (with-programs [git]
-    (-> (git "hash-object" "--stdin"
-             {:in st})
-        (clojure.string/trim-newline))))
+  (git ["hash-object" "--stdin"] st))
 
 (defn ser
   "Serializes the argument"
