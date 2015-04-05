@@ -2,7 +2,7 @@
   (:require [me.raynes.conch :refer [with-programs]]))
 
 (defn git
-  ([args] (git args nil))
+  ([args] (git args ""))
   ([args in]
    (if (not (sequential? args))
      (git [args] in)
@@ -15,6 +15,10 @@
   "Takes a string, writes it to the object store. Returns hash"
   [st]
   (git [:hash-object "--stdin"] st))
+
+(defn cat-file
+  [rev]
+  (println (git [:cat-file "-p" rev])))
 
 (defn ser
   "Serializes the argument"
