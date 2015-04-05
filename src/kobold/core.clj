@@ -23,27 +23,6 @@
   [rev]
   (println (git [:cat-file "-p" rev])))
 
-;; (declare wrt)
-
-;; (defn ser
-  ;;   "Serializes the argument"
-;;   [x]
-;;   (if (vector? x)
-;;     (reduce (fn [[outstr hashes] el] (let [[st hsh]])[(str outstr st "\n") (conj hashes hsh)]) ["" #{}] x)
-;;     [(pr-str x) nil]))
-
-;; (defn wrt
-;;   [x]
-;;   (if (vector? x)
-;;     (let [hsh (hash-object (ser x))]
-;;       [(str "#rf \"" hsh  "\"") hsh])
-;;     [(ser x) nil]))
-
-(defn ser-el [e]
-  (if (vector? e)
-    (str "#rf \"" (write-vec e) "\"\n")
-    (prn-str e)))
-
 (defn ser-vec
   "Returns a pair [blob tree-str]"
   [v]
@@ -65,17 +44,36 @@
         hsh (hash-object blob)]
     (str "100644 blob " hsh "\troot\n" tree-str)))
 
-(defn write-vec [v]
+(defn write-vec
+  "Writes a vector to the db. Returns hash of the tree object"
+  [v]
   (-> v vec->tree mktree))
 
-(defn rv [st]
+(defn read-blob-line [st]
   (if-let [m (re-find #"#rf \"(.*)\"" st)]
     (let [hsh (get m 1)]
       (read-vec hsh))
-    (load-string st)))
+    (read-string st)))
 
-(defn rd-vec [st]
-  (mapv rv (clojure.string/split st #"\n")))
+(defn blob->vec
+  [st]
+  (mapv read-blob-line (clojure.string/split st #"\n")))
 
-(defn read-vec [hsh]
-  (rd-vec (git [:show (str hsh ":root")])))
+(defn read-vec
+  "Takes the hash of a tree object and reads the vector stored"
+  [hsh]
+  (blob->vec (git [:show (str hsh ":root")])))
+
+(defn read-head
+  "Returns the hash of the commit pointed to by HEAD"
+  []
+  (git [:rev-parse "HEAD"]))
+
+(defn commit-tree
+  [tree-hash parent-hash]
+  (git [:commit-tree "-m" "Kobold commit" "-p" parent-hash tree-hash]))
+
+(defn advance-head
+  "Advances `head` to the specified commit"
+  [commit-hash]
+  (git [:update-ref "refs/heads/master" commit-hash]))
