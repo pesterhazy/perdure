@@ -24,47 +24,49 @@
   [rev]
   (println (git [:cat-file "-p" rev])))
 
-(defn nest? [e] (or (map? e) (vector? e)))
-
 (declare ser-vec)
 (declare ser-map)
 (declare write-coll)
 
-(defn ser
+(defn ser-coll
   [x]
   (cond (vector? x) (ser-vec x)
         (map? x) (ser-map x)
-        :default (prn-str x)))
+        :default (throw (IllegalArgumentException. "Don't know how to serialize this"))))
+
+(defn rf-str [hsh]
+  (str "#kobold.core/rf \"" hsh "\"\n"))
+
+(defn tree-str [hsh idx]
+  (str "040000 tree " hsh "\t" idx "\n"))
+
+(defn ser-vec-step
+  [[out-str out-tree tree-count] e]
+  (if (coll? e)
+    (let [hsh (write-coll e)]
+      [(str out-str (rf-str hsh))
+       (str out-tree (tree-str hsh tree-count))
+       (inc tree-count)])
+    [(str out-str (prn-str e)) out-tree tree-count]))
 
 (defn ser-vec
   "Returns a pair [blob tree-str]"
   [v]
-  (let [[blob tree-str] (reduce
-                         (fn [[out-str out-tree tree-count] e]
-                           (if (nest? e)
-                             (let [hsh (write-coll e)]
-                               [(str out-str (str "#kobold.core/rf \"" hsh "\"\n"))
-                                (str out-tree "040000 tree " hsh "\t" tree-count "\n")
-                                (inc tree-count)])
-                             [(str out-str (prn-str e)) out-tree tree-count]))
-                         ["" "" 0]
-                         v)]
+  (let [[blob tree-str] (reduce ser-vec-step ["" "" 0] v)]
     [(str "[\n" blob "]\n") tree-str]))
 
 (defn ser-map-step
   [[out-str out-tree tree-count] [k v]]
-  (let [[kk vv] (map (fn [x] (if (nest? x)
+  (let [[kk vv] (map (fn [x] (if (coll? x)
                                (let [hsh (write-coll x)]
-                                 [(str "#kobold.core/rf \"" hsh "\"") hsh])
+                                 [(rf-str hsh) hsh])
                                [(pr-str x) nil]))
                      [k v])
         tree-entries (keep second [kk vv])]
     [(str out-str (first kk) " " (first vv) "\n")
      (apply str
             out-tree
-            (map-indexed (fn [idx te]
-                           (str "040000 tree " te "\t" (+ tree-count idx) "\n"))
-                         tree-entries))
+            (map-indexed (fn [idx te] (tree-str te (+ tree-count idx))) tree-entries))
      (+ tree-count (count tree-entries))]))
 
 (defn ser-map
@@ -76,7 +78,7 @@
 (defn coll->tree
   [v]
   "Converts a collection into a string representation of a git tree object"
-  (let [[blob tree-str] (ser v)
+  (let [[blob tree-str] (ser-coll v)
         hsh (hash-object blob)]
     (str "100644 blob " hsh "\troot\n" tree-str)))
 
