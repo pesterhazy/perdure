@@ -9,3 +9,7 @@
             [clojure.string :as str]
             [clojure.test :as test]
             [clojure.tools.namespace.repl :refer [refresh refresh-all]]))
+
+(defn rt
+  []
+  (test/run-tests 'kobold.core-test))
