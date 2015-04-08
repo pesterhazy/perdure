@@ -101,10 +101,10 @@
   [dict v]
   (if-let [sha (get-in @dict [:obj->sha v])]
     (do
-      (println "nothing to do, sha is already known: " sha)
+      (println "c " sha)
       sha)
     (let [sha (->> v (coll->tree dict) mktree)]
-      (println "Wrote collection to disk, sha: " sha)
+      (println "W " sha)
       (swap! dict assoc-in [:sha->obj sha] v)
       (swap! dict assoc-in [:obj->sha v] sha)
       sha)))
@@ -135,10 +135,10 @@
   [dict hsh]
   (if (get-in @dict [:sha->obj hsh])
     (do
-      (println "already in dict: " hsh)
+      (println "c " hsh)
       (get-in @dict [:sha->obj hsh]))
     (let [v (->> hsh read-blob (blob->coll dict))]
-      (println "reading from storage: " hsh)
+      (println "R " hsh)
       (swap! dict assoc-in [:sha->obj hsh] v)
       (swap! dict assoc-in [:obj->sha v] hsh)
       v)))
@@ -160,11 +160,19 @@
 (defn read-head
   "Returns the hash of the commit pointed to by HEAD"
   []
-  (git [:rev-parse "HEAD"]))
+  (try 
+    (git [:rev-parse "HEAD"])
+    (catch clojure.lang.ExceptionInfo e
+      (if (re-find #"^.*unknown revision or path not in the working tree"
+                   (-> e ex-data :proc :err clojure.string/join))
+        nil
+        (throw e)))))
 
 (defn commit-tree
   [tree-hash parent-hash]
-  (git [:commit-tree "-m" "Kobold commit" "-p" parent-hash tree-hash]))
+  (git (concat [:commit-tree "-m" "Kobold commit"]
+               (when parent-hash ["-p" parent-hash])
+               [tree-hash])))
 
 (defn advance-head
   "Advances `head` to the specified commit"
@@ -199,9 +207,11 @@
 
 (defn git-atom
   [init]
-  (let [[dict val] (->> (read-head)
-                        commit-hash->tree-hash
-                        (read-coll-with-dict {}))
+  (let [parent-commit-hash (read-head)
+        [dict val] (if parent-commit-hash
+                     (->> parent-commit-hash
+                          commit-hash->tree-hash
+                          (read-coll-with-dict {}))
+                     [{} init])
         dict-atom (atom dict)]
-    (println "new dict:" dict)
     (atom* val (GitBackend. dict-atom) {})))
