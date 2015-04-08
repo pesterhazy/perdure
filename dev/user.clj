@@ -1,5 +1,5 @@
 (ns user
-  (:require [kobold.core :refer :all]
+  (:require [pesterhazy.perdure :refer :all]
             [alandipert.enduro :as e]
             [clojure.java.io :as io]
             [clojure.java.javadoc :refer [javadoc]]
@@ -13,4 +13,4 @@
 
 (defn rt
   []
-  (test/run-tests 'kobold.core-test))
+  (test/run-tests 'pesterhazy.perdure-test))

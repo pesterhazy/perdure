@@ -1,4 +1,4 @@
-(ns kobold.core
+(ns pesterhazy.perdure
   (:require [me.raynes.conch :refer [with-programs]]
             [clojure.edn :as edn]
             [alandipert.enduro :refer [atom* IDurableBackend]]))
@@ -8,7 +8,7 @@
   ([args in]
    (if (sequential? args)
      (with-programs [git]
-       (let [repo "/home/paulus/prg/kobold/rep"
+       (let [repo "data"
              ;;_ (println "git" (clojure.string/join " " (map pr-str args)))
              params (concat (map name args) [{:in in, :dir repo}])]
          (-> (apply git params)
@@ -50,7 +50,7 @@
         :default (throw (IllegalArgumentException. "Don't know how to serialize this"))))
 
 (defn rf-str [hsh]
-  (str "#kobold.core/rf \"" hsh "\"\n"))
+  (str "#pesterhazy.perdure.core/rf \"" hsh "\"\n"))
 
 (defn tree-str [hsh idx]
   (str "040000 tree " hsh "\t" idx "\n"))
@@ -128,7 +128,7 @@
 
 (defn blob->coll
   [dict st]
-  (edn/read-string {:readers {'kobold.core/rf (partial read-coll* dict)}} st))
+  (edn/read-string {:readers {'pesterhazy.perdure.core/rf (partial read-coll* dict)}} st))
 
 (defn read-coll*
   "Takes the hash of a tree object and reads the collection stored"
@@ -170,7 +170,7 @@
 
 (defn commit-tree
   [tree-hash parent-hash]
-  (git (concat [:commit-tree "-m" "Kobold commit"]
+  (git (concat [:commit-tree "-m" (if parent-hash "Perdure initial commit" "Perdure commit")]
                (when parent-hash ["-p" parent-hash])
                [tree-hash])))
 
