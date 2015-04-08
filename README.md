@@ -8,6 +8,8 @@ Clojure's PERsistent data structures made DURable
 
 As storage backend, *perdure* uses `git`, so you can use regular `git` commands (such as `git log`) to inspect the history.
 
+*perdure* is a young project and should be considered alpha quality.
+
 ## Usage
 
 ````
@@ -52,7 +54,7 @@ W  f17f288b0ad6f974ac481b5666e10a200f89fdf6
 [{:age 41, :name "Joe"} {:age 20, :name "Bob"}]
 ````
 
-We can use `git commands`:
+We can use `git` commands:
 
 ````
 > git log
@@ -107,6 +109,10 @@ index 89fdfce..2a65de7 100644
  #pesterhazy.perdure.core/rf "2ba7383f307fda97cd2aa643ea19f5118bbfd07d"
  ]
 ````
+
+## Related work
+
+`perdure` builds on [enduro](https://github.com/alandipert/enduro) by Alan Dipert.
 
 ## Contact
 
