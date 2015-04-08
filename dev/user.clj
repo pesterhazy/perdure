@@ -1,5 +1,6 @@
 (ns user
   (:require [kobold.core :refer :all]
+            [alandipert.enduro :as e]
             [clojure.java.io :as io]
             [clojure.java.javadoc :refer [javadoc]]
             [clojure.pprint :refer [pprint]]

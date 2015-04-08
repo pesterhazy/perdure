@@ -91,19 +91,36 @@
 
 ;; ----
 
-(declare read-coll)
+(declare read-coll*)
 
-(defn read-blob [hsh]
-  (git [:show (str hsh ":root")]))
+(defn read-blob [dict hsh]
+  (if (@dict hsh)
+    (do
+      (println "already in dict: " hsh)
+      (@dict hsh))
+    (let [blob (git [:show (str hsh ":root")])]
+      (println "reading from storage: " hsh)
+      (swap! dict assoc hsh blob)
+      blob)))
 
 (defn blob->coll
-  [st]
-  (edn/read-string {:readers {'kobold.core/rf read-coll}} st))
+  [dict st]
+  (edn/read-string {:readers {'kobold.core/rf (partial read-coll* dict)}} st))
+
+(defn read-coll*
+  "Takes the hash of a tree object and reads the collection stored"
+  [dict hsh]
+  (->> hsh (read-blob dict) (blob->coll dict)))
+
+(defn read-coll-with-dict
+  "Returns a pair [updated-hdict coll]"
+  [hdict hsh]
+  (let [dict (atom {})]
+    [@dict (read-coll* dict hsh)]))
 
 (defn read-coll
-  "Takes the hash of a tree object and reads the collection stored"
   [hsh]
-  (-> hsh read-blob blob->coll))
+  (->> hsh (read-coll-with-dict nil) second))
 
 ;; ---
 
@@ -130,7 +147,7 @@
 
 (defn show-head
   []
-  (-> (read-head) read-coll))
+  (-> (read-head) read-coll second))
 
 (deftype GitBackend [bla]
   IDurableBackend
@@ -149,4 +166,4 @@
 
 (defn git-atom
   [init]
-  (atom* init (GitBackend. nil) {}))
+  (atom* (show-head) (GitBackend. nil) {}))
