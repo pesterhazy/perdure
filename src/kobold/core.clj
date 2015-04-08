@@ -1,6 +1,7 @@
 (ns kobold.core
   (:require [me.raynes.conch :refer [with-programs]]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [alandipert.enduro :refer [atom* IDurableBackend]]))
 
 (defn git
   ([args] (git args ""))
@@ -8,8 +9,8 @@
    (if (not (sequential? args))
      (git [args] in)
      (with-programs [git]
-       (let [repo ["--git-dir" "/home/paulus/prg/kobold/rep/.git"]]
-         (-> (apply git (concat repo (map name args) [{:in in}]))
+       (let [repo "/home/paulus/prg/kobold/rep"]
+         (-> (apply git (concat (map name args) [{:dir repo}]))
              (clojure.string/trim-newline)))))))
 
 (defn hash-object
@@ -58,8 +59,7 @@
 (defn ser-map-step
   [[out-str out-tree tree-count] [k v]]
   (let [[kk vv] (map (fn [x] (if (coll? x)
-                               (let [hsh (write-coll x)]
-                                 [(rf-str hsh) hsh])
+                               (let [hsh (write-coll x)] [(rf-str hsh) hsh])
                                [(pr-str x) nil]))
                      [k v])
         tree-entries (keep second [kk vv])]
@@ -117,4 +117,29 @@
 (defn advance-head
   "Advances `head` to the specified commit"
   [commit-hash]
-  (git [:update-ref "refs/heads/master" commit-hash]))
+  (git [:update-ref "refs/heads/master" commit-hash])
+  (git [:symbolic-ref "HEAD" "refs/heads/master"])
+  (git [:reset "--hard"]))
+
+(defn commit-coll
+  [v]
+  (let [hd (read-head)]
+    (-> v write-coll (commit-tree hd) advance-head)))
+
+(defn show-head
+  []
+  (-> (read-head) read-coll))
+
+(deftype GitBackend [bla]
+  IDurableBackend
+  (-commit!
+    [this value]
+    (println "commit!")
+    true)
+  (-remove!
+    [this]
+    (println "remove!")))
+
+(defn git-atom
+  [init]
+  (atom* init (GitBackend. nil) {}))
