@@ -1,9 +1,9 @@
-(ns kobold.core-test
+(ns pesterhazy.perdure-test
   (:require [clojure.test :refer :all]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
-            [kobold.core :refer :all]))
+            [pesterhazy.perdure :refer :all]))
 
 ;; (def compound (fn [inner-gen]
 ;;                 (gen/one-of [(gen/vector inner-gen)

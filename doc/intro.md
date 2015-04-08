@@ -1,3 +1,3 @@
-# Introduction to kobold
+# Introduction to perdure
 
-TODO: write [great documentation](http://jacobian.org/writing/what-to-write/)
+TODO...
