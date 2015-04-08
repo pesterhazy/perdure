@@ -41,12 +41,12 @@
 
 (declare ser-vec)
 (declare ser-map)
-(declare write-coll)
+(declare write-coll*)
 
 (defn ser-coll
-  [x]
-  (cond (vector? x) (ser-vec x)
-        (map? x) (ser-map x)
+  [dict x]
+  (cond (vector? x) (ser-vec dict x)
+        (map? x) (ser-map dict x)
         :default (throw (IllegalArgumentException. "Don't know how to serialize this"))))
 
 (defn rf-str [hsh]
@@ -56,9 +56,9 @@
   (str "040000 tree " hsh "\t" idx "\n"))
 
 (defn ser-vec-step
-  [[out-str out-tree tree-count] e]
+  [dict [out-str out-tree tree-count] e]
   (if (coll? e)
-    (let [hsh (write-coll e)]
+    (let [hsh (write-coll* dict e)]
       [(str out-str (rf-str hsh))
        (str out-tree (tree-str hsh tree-count))
        (inc tree-count)])
@@ -66,14 +66,14 @@
 
 (defn ser-vec
   "Returns a pair [blob tree-str]"
-  [v]
-  (let [[blob tree-str] (reduce ser-vec-step ["" "" 0] v)]
+  [dict v]
+  (let [[blob tree-str] (reduce (partial ser-vec-step dict) ["" "" 0] v)]
     [(str "[\n" blob "]\n") tree-str]))
 
 (defn ser-map-step
-  [[out-str out-tree tree-count] [k v]]
+  [dict [out-str out-tree tree-count] [k v]]
   (let [[kk vv] (map (fn [x] (if (coll? x)
-                               (let [hsh (write-coll x)] [(rf-str hsh) hsh])
+                               (let [hsh (write-coll* dict x)] [(rf-str hsh) hsh])
                                [(pr-str x) nil]))
                      [k v])
         tree-entries (keep second [kk vv])]
@@ -85,27 +85,39 @@
 
 (defn ser-map
   "Returns a pair [blob tree-str]"
-  [v]
-  (let [[blob tree-str] (reduce ser-map-step ["" "" 0] v)]
+  [dict v]
+  (let [[blob tree-str] (reduce (partial ser-map-step dict) ["" "" 0] v)]
     [(str "{\n" blob "}\n") tree-str]))
 
 (defn coll->tree
-  [v]
+  [dict v]
   "Converts a collection into a string representation of a git tree object"
-  (let [[blob tree-str] (ser-coll v)
+  (let [[blob tree-str] (ser-coll dict v)
         hsh (hash-object blob)]
     (str "100644 blob " hsh "\troot\n" tree-str)))
 
-(defn write-coll
+(defn write-coll*
   "Writes a collection to the db. Returns hash of the tree object"
-  [v]
-  (if-let [sha (-> v meta :sha)]
+  [dict v]
+  (if-let [sha (get-in @dict [:obj->sha v])]
     (do
       (println "nothing to do, sha is already known: " sha)
       sha)
-    (let [sha (-> v coll->tree mktree)]
-      (println "writing collection to disk, sha: " sha)
+    (let [sha (->> v (coll->tree dict) mktree)]
+      (println "Wrote collection to disk, sha: " sha)
+      (swap! dict assoc-in [:sha->obj sha] v)
+      (swap! dict assoc-in [:obj->sha v] sha)
       sha)))
+
+(defn write-coll-with-dict
+  [hdict v]
+  (let [dict (atom hdict)
+        result (write-coll* dict v)]
+    [@dict result]))
+
+(defn write-coll
+  [v]
+  (second (write-coll-with-dict {} v)))
 
 ;; ----
 
@@ -121,14 +133,15 @@
 (defn read-coll*
   "Takes the hash of a tree object and reads the collection stored"
   [dict hsh]
-  (with-meta (if (@dict hsh)
-               (do
-                 (println "already in dict: " hsh)
-                 (@dict hsh))
-               (let [v (->> hsh read-blob (blob->coll dict))]
-                 (println "reading from storage: " hsh)
-                 (swap! dict assoc hsh v)
-                 v)) {:sha hsh}))
+  (if (get-in @dict [:sha->obj hsh])
+    (do
+      (println "already in dict: " hsh)
+      (get-in @dict [:sha->obj hsh]))
+    (let [v (->> hsh read-blob (blob->coll dict))]
+      (println "reading from storage: " hsh)
+      (swap! dict assoc-in [:sha->obj hsh] v)
+      (swap! dict assoc-in [:obj->sha v] hash)
+      v)))
 
 (defn read-coll-with-dict
   "Returns a pair [updated-hdict coll]"
@@ -160,9 +173,12 @@
   (git [:reset "--hard"]))
 
 (defn commit-coll
-  [v]
-  (let [parent (read-head)]
-    (-> v write-coll (commit-tree parent) advance-head)))
+  [dict v]
+  (let [parent (read-head)
+        [updated-dict tree-hash] (write-coll-with-dict dict v)]
+    (-> (commit-tree tree-hash parent)
+        advance-head)
+    updated-dict))
 
 (defn show-head
   []
@@ -172,9 +188,9 @@
   IDurableBackend
   (-commit!
     [this new-val]
-    (println "commiting new val:" new-val)
-    (commit-coll new-val)
-    true)
+    (let [updated-dict (commit-coll @dict-atom new-val)]
+      (reset! dict-atom updated-dict)
+      true))
   (-remove!
     [this]
     true

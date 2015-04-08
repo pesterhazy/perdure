@@ -5,13 +5,13 @@
             [clojure.test.check.properties :as prop]
             [kobold.core :refer :all]))
 
-(def compound (fn [inner-gen]
-                (gen/one-of [(gen/vector inner-gen)
-                             (gen/map inner-gen inner-gen)])))
-(def scalars (gen/one-of [gen/int gen/boolean]))
-(def my-json-like-thing (gen/recursive-gen compound scalars))
+;; (def compound (fn [inner-gen]
+;;                 (gen/one-of [(gen/vector inner-gen)
+;;                              (gen/map inner-gen inner-gen)])))
+;; (def scalars (gen/one-of [gen/int gen/boolean]))
+;; (def my-json-like-thing (gen/recursive-gen compound scalars))
 
-(defspec round-trip
-  50
-  (prop/for-all [v my-json-like-thing]
-                (= v (-> v write-coll read-coll)))) 
+;; (defspec round-trip
+;;   50
+;;   (prop/for-all [v my-json-like-thing]
+;;                 (= v (-> v write-coll read-coll)))) 
