@@ -135,12 +135,17 @@
 (deftype GitBackend [bla]
   IDurableBackend
   (-commit!
-    [this value]
-    (println "commit!")
+    [this new-val]
+    (let [old-val (show-head)]
+      (println "commit!")
+      (println "old: " old-val)
+      (println "new: " new-val)
+      (commit-coll new-val))
     true)
   (-remove!
     [this]
-    (println "remove!")))
+    true
+    ))
 
 (defn git-atom
   [init]
