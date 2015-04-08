@@ -6,12 +6,14 @@
 (defn git
   ([args] (git args ""))
   ([args in]
-   (if (not (sequential? args))
-     (git [args] in)
+   (if (sequential? args)
      (with-programs [git]
-       (let [repo "/home/paulus/prg/kobold/rep"]
-         (-> (apply git (concat (map name args) [{:dir repo}]))
-             (clojure.string/trim-newline)))))))
+       (let [repo "/home/paulus/prg/kobold/rep"
+             params (concat (map name args) [{:in in, :dir repo}])]
+         ;; (println "git" (clojure.string/join " " params))
+         (-> (apply git params)
+             (clojure.string/trim-newline))))
+     (git [args] in))))
 
 (defn hash-object
   "Takes a string, writes it to the object store. Returns hash"
