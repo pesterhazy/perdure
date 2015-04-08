@@ -140,15 +140,16 @@
     (let [v (->> hsh read-blob (blob->coll dict))]
       (println "reading from storage: " hsh)
       (swap! dict assoc-in [:sha->obj hsh] v)
-      (swap! dict assoc-in [:obj->sha v] hash)
+      (swap! dict assoc-in [:obj->sha v] hsh)
       v)))
 
 (defn read-coll-with-dict
   "Returns a pair [updated-hdict coll]"
   [hdict hsh]
   (assert (= :tree (obj-type hsh)))
-  (let [dict (atom hdict)]
-    [@dict (read-coll* dict hsh)]))
+  (let [dict (atom hdict)
+        result (read-coll* dict hsh)]
+    [@dict result]))
 
 (defn read-coll
   [hsh]
@@ -202,4 +203,5 @@
                         commit-hash->tree-hash
                         (read-coll-with-dict {}))
         dict-atom (atom dict)]
+    (println "new dict:" dict)
     (atom* val (GitBackend. dict-atom) {})))
