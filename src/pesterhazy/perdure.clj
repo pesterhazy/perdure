@@ -1,4 +1,4 @@
-(ns pesterhazy.perdure
+(ns pesterhazy.perdure.core
   (:require [me.raynes.conch :refer [with-programs]]
             [clojure.edn :as edn]
             [alandipert.enduro :refer [atom* IDurableBackend]]))
@@ -170,7 +170,7 @@
 
 (defn commit-tree
   [tree-hash parent-hash]
-  (git (concat [:commit-tree "-m" (if parent-hash "Perdure initial commit" "Perdure commit")]
+  (git (concat [:commit-tree "-m" (if parent-hash "Perdure commit" "Perdure initial commit")]
                (when parent-hash ["-p" parent-hash])
                [tree-hash])))
 
